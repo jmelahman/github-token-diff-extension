@@ -1,0 +1,16 @@
+{
+  "name": "github-token-diff-extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Firefox extension to estimate the token delta of a GitHub pull request",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/",
+    "lint": "web-ext lint --source-dir=.",
+    "start": "web-ext run --source-dir=.",
+    "build": "web-ext build --source-dir=. --overwrite-dest"
+  },
+  "devDependencies": {
+    "web-ext": "^8.7.1"
+  }
+}

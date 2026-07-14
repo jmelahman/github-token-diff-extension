@@ -1,0 +1,37 @@
+.ghtd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 0 7px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  vertical-align: middle;
+  border: 1px solid var(--borderColor-default, var(--color-border-default, #d0d7de));
+  border-radius: 2em;
+  color: var(--fgColor-muted, var(--color-fg-muted, #59636e));
+}
+
+.ghtd-added {
+  color: var(--fgColor-success, var(--color-success-fg, #1a7f37));
+}
+
+.ghtd-removed {
+  color: var(--fgColor-danger, var(--color-danger-fg, #cf222e));
+}
+
+.ghtd-file-badge {
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+.ghtd-floating {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  z-index: 2147483646;
+  background: var(--bgColor-default, var(--color-canvas-default, #ffffff));
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
