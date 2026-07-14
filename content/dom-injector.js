@@ -7,16 +7,32 @@
 (() => {
   const GHTD = (globalThis.GHTD = globalThis.GHTD || {});
 
-  // Hashed Primer class names are unstable across GitHub deploys — anchor on
-  // ARIA/data attributes first, classic classes second, floating badge last.
-  const HEADER_ANCHORS = [
-    { selector: 'nav[aria-label="Pull request navigation tabs"]', place: "append" },
-    { selector: ".tabnav-tabs", place: "append" },
-    { selector: ".js-issue-title", place: "after" },
-    { selector: 'h1[data-component="PH_Title"]', place: "after" },
-  ];
-
   const format = (n) => n.toLocaleString();
+
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  // Coin/token glyph, drawn inline (CSP forbids external assets).
+  function coinIcon() {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 16 16");
+    svg.setAttribute("aria-hidden", "true");
+    svg.classList.add("ghtd-icon");
+    const outer = document.createElementNS(SVG_NS, "circle");
+    outer.setAttribute("cx", "8");
+    outer.setAttribute("cy", "8");
+    outer.setAttribute("r", "6.25");
+    const inner = document.createElementNS(SVG_NS, "circle");
+    inner.setAttribute("cx", "8");
+    inner.setAttribute("cy", "8");
+    inner.setAttribute("r", "2.75");
+    for (const c of [outer, inner]) {
+      c.setAttribute("fill", "none");
+      c.setAttribute("stroke", "currentColor");
+      c.setAttribute("stroke-width", "1.5");
+      svg.appendChild(c);
+    }
+    return svg;
+  }
 
   function tokenSpans(added, removed) {
     const addedEl = document.createElement("span");
@@ -25,7 +41,41 @@
     const removedEl = document.createElement("span");
     removedEl.className = "ghtd-removed";
     removedEl.textContent = `−${format(removed)}`;
-    return [addedEl, document.createTextNode(" "), removedEl];
+    return [addedEl, removedEl];
+  }
+
+  function buildBadge(kind, key, total, note) {
+    const badge = document.createElement("span");
+    badge.className = kind === "file" ? "ghtd-badge ghtd-file-badge" : "ghtd-badge";
+    badge.dataset.ghtdBadge = kind;
+    badge.dataset.ghtdKey = key;
+    badge.appendChild(coinIcon());
+    if (total) {
+      badge.append(...tokenSpans(total.added, total.removed));
+      badge.title = `Estimated token diff: ${format(total.added)} added, ${format(total.removed)} removed (heuristic)`;
+    } else {
+      badge.append("n/a");
+      badge.title = note || "Token estimate unavailable";
+    }
+    return badge;
+  }
+
+  // The header badge belongs adjacent to GitHub's own "+X −Y" line diffstat.
+  // React header: DiffSquares carry data-testid="... diffstat"; two parents up
+  // is the widget holding the numbers + squares. Classic header: span#diffstat.
+  function findHeaderAnchor() {
+    const square = document.querySelector(
+      '[data-testid="addition diffstat"], [data-testid="deletion diffstat"], [data-testid="neutral diffstat"]'
+    );
+    const widget = square?.parentElement?.parentElement;
+    if (widget) return { anchor: widget, place: "append" };
+    const classic = document.querySelector("#diffstat") || document.querySelector(".tabnav-extra .diffstat");
+    if (classic) return { anchor: classic, place: "after" };
+    const nav = document.querySelector('nav[aria-label="Pull request navigation tabs"], .tabnav-tabs');
+    if (nav) return { anchor: nav, place: "append" };
+    const title = document.querySelector('.js-issue-title, h1[data-component="PH_Title"]');
+    if (title) return { anchor: title, place: "after" };
+    return null;
   }
 
   GHTD.injectHeaderBadge = function injectHeaderBadge(key, total, note) {
@@ -35,27 +85,16 @@
         if (existing.dataset.ghtdKey === key) return;
         existing.remove();
       }
-      const badge = document.createElement("span");
-      badge.className = "ghtd-badge";
-      badge.dataset.ghtdBadge = "header";
-      badge.dataset.ghtdKey = key;
-      if (total) {
-        badge.append(...tokenSpans(total.added, total.removed), document.createTextNode(" tokens"));
-        badge.title = `Estimated token diff: ${format(total.added)} added, ${format(total.removed)} removed (heuristic)`;
-      } else {
-        badge.textContent = "tokens: n/a";
-        badge.title = note || "Token estimate unavailable";
-      }
-      for (const { selector, place } of HEADER_ANCHORS) {
-        const anchor = document.querySelector(selector);
-        if (!anchor) continue;
-        if (place === "append") anchor.appendChild(badge);
-        else anchor.insertAdjacentElement("afterend", badge);
+      const badge = buildBadge("header", key, total, note);
+      const found = findHeaderAnchor();
+      if (!found) {
+        // Last resort: feature never silently disappears.
+        badge.classList.add("ghtd-floating");
+        document.body.appendChild(badge);
         return;
       }
-      // Last resort: feature never silently disappears.
-      badge.classList.add("ghtd-floating");
-      document.body.appendChild(badge);
+      if (found.place === "append") found.anchor.appendChild(badge);
+      else found.anchor.insertAdjacentElement("afterend", badge);
     } catch {
       // never break GitHub's page
     }
@@ -68,41 +107,51 @@
         if (f.path) byPath.set(f.path, f);
         if (f.oldPath && !byPath.has(f.oldPath)) byPath.set(f.oldPath, f);
       }
+
+      // Classic Files-changed markup (/files, logged-out).
       const headers = document.querySelectorAll(".file-header[data-path]");
       for (const header of headers) {
-        injectFileBadge(header, header.getAttribute("data-path"), key, byPath);
+        placeFileBadge(header, header.getAttribute("data-path"), key, byPath, header.querySelector(".diffstat"));
       }
       if (headers.length) return;
-      // Fallback markup: wrapper div carries data-tagsearch-path.
-      for (const wrapper of document.querySelectorAll("[data-tagsearch-path]")) {
-        const target =
-          wrapper.querySelector(".file-header, .file-info, h3") || wrapper.firstElementChild;
-        if (target) {
-          injectFileBadge(target, wrapper.getAttribute("data-tagsearch-path"), key, byPath);
-        }
+      const wrappers = document.querySelectorAll("[data-tagsearch-path]");
+      for (const wrapper of wrappers) {
+        const target = wrapper.querySelector(".file-header, .file-info, h3") || wrapper.firstElementChild;
+        if (target) placeFileBadge(target, wrapper.getAttribute("data-tagsearch-path"), key, byPath, null);
+      }
+      if (wrappers.length) return;
+
+      // New React Files-changed experience (/changes): hashed class names, so
+      // match file headers by their path text instead of markup structure.
+      for (const el of document.querySelectorAll("h3, [data-file-path], a[title]")) {
+        if (el.closest('[role="tree"], nav')) continue; // skip the file tree sidebar
+        const path =
+          el.getAttribute("data-file-path") ||
+          byPath.has(el.getAttribute("title")) && el.getAttribute("title") ||
+          el.textContent.trim();
+        if (byPath.has(path)) placeFileBadge(el, path, key, byPath, null);
       }
     } catch {
       // fail soft — header badge still works
     }
   };
 
-  function injectFileBadge(container, path, key, byPath) {
+  function placeFileBadge(container, path, key, byPath, afterEl) {
     const stats = byPath.get(path);
     if (!stats || stats.binary) return;
-    const existing = container.querySelector('[data-ghtd-badge="file"]');
+    const sibling = container.nextElementSibling;
+    const existing = afterEl
+      ? container.querySelector('[data-ghtd-badge="file"]')
+      : sibling && sibling.getAttribute("data-ghtd-badge") === "file"
+        ? sibling
+        : null;
     if (existing) {
       if (existing.dataset.ghtdKey === key) return;
       existing.remove();
     }
-    const badge = document.createElement("span");
-    badge.className = "ghtd-badge ghtd-file-badge";
-    badge.dataset.ghtdBadge = "file";
-    badge.dataset.ghtdKey = key;
-    badge.append(...tokenSpans(stats.added, stats.removed), document.createTextNode(" tok"));
-    badge.title = `Estimated token diff: ${format(stats.added)} added, ${format(stats.removed)} removed (heuristic)`;
-    const diffstat = container.querySelector(".diffstat");
-    if (diffstat) diffstat.insertAdjacentElement("afterend", badge);
-    else container.appendChild(badge);
+    const badge = buildBadge("file", key, { added: stats.added, removed: stats.removed });
+    if (afterEl) afterEl.insertAdjacentElement("afterend", badge);
+    else container.insertAdjacentElement("afterend", badge);
   }
 
   GHTD.removeBadges = function removeBadges() {

@@ -3,10 +3,15 @@
 (() => {
   const GHTD = (globalThis.GHTD = globalThis.GHTD || {});
 
-  // /{owner}/{repo}/pull/{n}[/(files|commits|checks)...]
+  // /{owner}/{repo}/pull/{n}[/(files|changes|commits|checks)...]
+  // "changes" is the new React Files-changed experience; "files" the classic one.
   GHTD.parseGithubPrLocation = function parseGithubPrLocation(pathname) {
-    const m = pathname.match(/^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/(files|commits|checks))?(?:\/|$)/);
+    const m = pathname.match(
+      /^\/([^/]+)\/([^/]+)\/pull\/(\d+)(?:\/(files|changes|commits|checks))?(?:\/|$)/
+    );
     if (!m) return null;
-    return { owner: m[1], repo: m[2], prNumber: m[3], view: m[4] || "conversation" };
+    const sub = m[4] || "conversation";
+    const view = sub === "files" || sub === "changes" ? "files" : sub;
+    return { owner: m[1], repo: m[2], prNumber: m[3], view };
   };
 })();
