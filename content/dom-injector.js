@@ -141,28 +141,41 @@
   function placeFileBadge(container, path, key, byPath, afterEl) {
     const stats = byPath.get(path);
     if (!stats || stats.binary) return;
-    const sibling = container.nextElementSibling;
-    const existing = afterEl
-      ? container.querySelector('[data-ghtd-badge="file"]')
-      : sibling && sibling.getAttribute("data-ghtd-badge") === "file"
-        ? sibling
-        : null;
+
+    // Placement varies per view (see below), so scope the dedup check to the
+    // file's whole header row rather than assuming a fixed sibling position —
+    // otherwise re-renders would stack duplicate badges.
+    const row = container.closest('[class*="DiffFileHeader-module__diff-file-header"], .file-header');
+    const dedupScope = row || container.parentElement || container;
+    const existing = dedupScope.querySelector('[data-ghtd-badge="file"]');
     if (existing) {
       if (existing.dataset.ghtdKey === key) return;
       existing.remove();
     }
+
     const badge = buildBadge("file", key, { added: stats.added, removed: stats.removed });
+
     if (afterEl) {
-      // Inline, right after GitHub's line diffstat inside its flex row.
+      // Classic Files-changed markup: inline, right after the line diffstat.
       afterEl.insertAdjacentElement("afterend", badge);
-    } else {
-      // React /changes view: no line-diffstat handle, so the badge lands as a
-      // block-level sibling after the file header rather than in the line
-      // counter's row. Make it own the full row width and hug the right edge
-      // so it lines up flush right instead of inheriting the parent's centering.
-      badge.classList.add("ghtd-file-badge-block");
-      container.insertAdjacentElement("afterend", badge);
+      return;
     }
+
+    // React "optimized for large PRs" view: our path match lands on an element
+    // in the left file-path section, but GitHub's per-file line diffstat lives
+    // in a separate right-aligned action row. Drop the token badge just before
+    // that diffstat so it sits left of the line counter (mirrors the header
+    // badge) instead of stranded at the right edge of the left section.
+    const diffstat = row && row.querySelector('[class*="hideOnNarrowContainer"]');
+    if (diffstat) {
+      badge.classList.add("ghtd-file-badge-inline");
+      diffstat.insertAdjacentElement("beforebegin", badge);
+      return;
+    }
+
+    // Fallback: block-level sibling that hugs the right edge of its container.
+    badge.classList.add("ghtd-file-badge-block");
+    container.insertAdjacentElement("afterend", badge);
   }
 
   GHTD.removeBadges = function removeBadges() {

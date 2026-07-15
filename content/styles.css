@@ -42,6 +42,15 @@
   padding-left: 6px;
 }
 
+/* Inline placement just before GitHub's per-file line diffstat (React large-PR
+   view). No auto margin — sit snug with a small gap before the line counter,
+   matching the header badge. Defined after .ghtd-file-badge so it wins. */
+.ghtd-file-badge-inline {
+  margin-left: 0;
+  padding-left: 0;
+  margin-right: 8px;
+}
+
 /* Standalone sibling case (React /changes view): the badge isn't inside the
    line counter's flex row, so span the full row width and right-align its own
    contents to sit flush right instead of inheriting the parent's centering. */
