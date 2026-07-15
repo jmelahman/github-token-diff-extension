@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PR Token Diff for GitHub",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Shows the estimated token difference of a GitHub pull request next to GitHub's line-count diffstat.",
   "browser_specific_settings": {
     "gecko": {
