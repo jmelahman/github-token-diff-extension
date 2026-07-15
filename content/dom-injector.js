@@ -152,8 +152,17 @@
       existing.remove();
     }
     const badge = buildBadge("file", key, { added: stats.added, removed: stats.removed });
-    if (afterEl) afterEl.insertAdjacentElement("afterend", badge);
-    else container.insertAdjacentElement("afterend", badge);
+    if (afterEl) {
+      // Inline, right after GitHub's line diffstat inside its flex row.
+      afterEl.insertAdjacentElement("afterend", badge);
+    } else {
+      // React /changes view: no line-diffstat handle, so the badge lands as a
+      // block-level sibling after the file header rather than in the line
+      // counter's row. Make it own the full row width and hug the right edge
+      // so it lines up flush right instead of inheriting the parent's centering.
+      badge.classList.add("ghtd-file-badge-block");
+      container.insertAdjacentElement("afterend", badge);
+    }
   }
 
   GHTD.removeBadges = function removeBadges() {

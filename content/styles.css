@@ -42,6 +42,16 @@
   padding-left: 6px;
 }
 
+/* Standalone sibling case (React /changes view): the badge isn't inside the
+   line counter's flex row, so span the full row width and right-align its own
+   contents to sit flush right instead of inheriting the parent's centering. */
+.ghtd-file-badge-block {
+  display: flex;
+  width: 100%;
+  justify-content: flex-end;
+  margin-left: 0;
+}
+
 .ghtd-file-badge .ghtd-icon {
   width: 12px;
   height: 12px;

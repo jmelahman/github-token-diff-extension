@@ -2,6 +2,7 @@ export default {
   ignoreFiles: [
     "node_modules",
     "test",
+    "tools",
     "plans",
     "package.json",
     "package-lock.json",
@@ -9,5 +10,7 @@ export default {
     "README.md",
     "LICENSE",
     ".claude",
+    "*.png",
+    "web-ext-artifacts",
   ],
 };
